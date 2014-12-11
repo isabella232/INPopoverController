@@ -32,7 +32,7 @@
 	[self _setInitialPropertyValues];
 }
 
-#pragma mark - 
+#pragma mark -
 #pragma mark - Memory Management
 
 - (void)dealloc
@@ -63,6 +63,7 @@
 	INPopoverArrowDirection calculatedDirection = [self _arrowDirectionWithPreferredArrowDirection:direction]; // Calculate the best arrow direction
 	[self _setArrowDirection:calculatedDirection]; // Change the arrow direction of the popover
 	NSRect windowFrame = [self popoverFrameWithSize:self.contentSize andArrowDirection:calculatedDirection]; // Calculate the window frame based on the arrow direction
+
 	[_popoverWindow setFrame:windowFrame display:YES]; // Se the frame of the window
 	[(CAAnimation *)[_popoverWindow animationForKey:@"alphaValue"] setDelegate:self];
 
@@ -127,10 +128,47 @@
 	}
 }
 
-// Calculate the frame of the window depending on the arrow direction
+- (CGFloat)fittingXOffsetForViewFrame:(CGRect)windowFrame inScreenFrame:(CGRect)screenFrame {
+	CGFloat xOrigin = windowFrame.origin.x;
+
+	CGFloat offset = 0;
+	if (xOrigin < 0) {
+		offset = xOrigin * -1;
+	}
+	else if (xOrigin + windowFrame.size.width > screenFrame.size.width) {
+		offset = ((xOrigin + windowFrame.size.width) - screenFrame.size.width) * -1;
+	}
+
+	if (ABS(offset) >= (windowFrame.size.width * 0.5 - self.arrowSize.height - self.arrowSize.width) ) {
+		offset = 0;
+	}
+
+	return offset;
+}
+
+- (CGFloat)fittingYOffsetForViewFrame:(CGRect)windowFrame inScreenFrame:(CGRect)screenFrame {
+	CGFloat yOrigin = windowFrame.origin.y;
+
+	CGFloat offset = 0;
+	if (yOrigin < 0) {
+		offset = yOrigin * -1;
+	}
+	else if (yOrigin + windowFrame.size.height > screenFrame.size.height) {
+		offset = ((yOrigin + windowFrame.size.height) - screenFrame.size.height) * -1;
+	}
+
+	if (ABS(offset) >= (windowFrame.size.height * 0.5 - self.arrowSize.height * 2) ) {
+		offset = 0;
+	}
+
+	return offset;
+}
+
 // Calculate the frame of the window depending on the arrow direction
 - (NSRect)popoverFrameWithSize:(NSSize)contentSize andArrowDirection:(INPopoverArrowDirection)direction
 {
+	[self _setArrowOffset:0];
+
 	NSRect screenFrame = [[[_positionView window] screen] frame];
 	NSRect contentRect = NSZeroRect;
 	contentRect.size = contentSize;
@@ -138,40 +176,36 @@
 	if (direction == INPopoverArrowDirectionUp) {
 		CGFloat xOrigin = NSMidX(_screenRect) - floor(windowFrame.size.width / 2.0);
 		CGFloat yOrigin = NSMinY(_screenRect) - windowFrame.size.height;
-		if (xOrigin < 0) {
-			xOrigin = 0;
-		}
-		else if (xOrigin + windowFrame.size.width > screenFrame.size.width) {
-			xOrigin -= (xOrigin + windowFrame.size.width) - screenFrame.size.width;
-		}
+
+		CGFloat offset = [self fittingXOffsetForViewFrame:CGRectMake(xOrigin, yOrigin, windowFrame.size.width, windowFrame.size.height) inScreenFrame:screenFrame];
+		xOrigin += offset;
+		[self _setArrowOffset:-offset];
+
 		windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
 	} else if (direction == INPopoverArrowDirectionDown) {
 		CGFloat xOrigin = NSMidX(_screenRect) - floor(windowFrame.size.width / 2.0);
-		if (xOrigin < 0) {
-			xOrigin = 0;
-		}
-		else if (xOrigin + windowFrame.size.width > screenFrame.size.width) {
-			xOrigin -= (xOrigin + windowFrame.size.width) - screenFrame.size.width;
-		}
+
+		CGFloat offset = [self fittingXOffsetForViewFrame:CGRectMake(xOrigin, windowFrame.origin.y, windowFrame.size.width, windowFrame.size.height) inScreenFrame:screenFrame];
+		xOrigin += offset;
+		[self _setArrowOffset:-offset];
+
 		windowFrame.origin = NSMakePoint(xOrigin, NSMaxY(_screenRect));
 	} else if (direction == INPopoverArrowDirectionLeft) {
 		CGFloat yOrigin = NSMidY(_screenRect) - floor(windowFrame.size.height / 2.0);
-		if (yOrigin < 0) {
-			yOrigin = 0;
-		}
-		else if (yOrigin + windowFrame.size.height > screenFrame.size.height) {
-			yOrigin -= (yOrigin + windowFrame.size.height) - screenFrame.size.height;
-		}
+
+		CGFloat offset = [self fittingYOffsetForViewFrame:CGRectMake(windowFrame.origin.x, yOrigin, windowFrame.size.width, windowFrame.size.height) inScreenFrame:screenFrame];
+		yOrigin += offset;
+		[self _setArrowOffset:-offset];
+
 		windowFrame.origin = NSMakePoint(NSMaxX(_screenRect), yOrigin);
 	} else if (direction == INPopoverArrowDirectionRight) {
 		CGFloat xOrigin = NSMinX(_screenRect) - windowFrame.size.width;
 		CGFloat yOrigin = NSMidY(_screenRect) - floor(windowFrame.size.height / 2.0);
-		if (yOrigin < 0) {
-			yOrigin = 0;
-		}
-		else if (yOrigin + windowFrame.size.height > screenFrame.size.height) {
-			yOrigin -= (yOrigin + windowFrame.size.height) - screenFrame.size.height;
-		}
+
+		CGFloat offset = [self fittingYOffsetForViewFrame:CGRectMake(xOrigin, yOrigin, windowFrame.size.width, windowFrame.size.height) inScreenFrame:screenFrame];
+		yOrigin += offset;
+		[self _setArrowOffset:-offset];
+
 		windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
 	} else {
 		// If no arrow direction is specified, just return an empty rect
@@ -195,7 +229,7 @@
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification
 {
-	// when the user clicks in the parent window for activating the app, the parent window becomes key which prevents 
+	// when the user clicks in the parent window for activating the app, the parent window becomes key which prevents
 	if ([_popoverWindow isVisible])
 		[self performSelector:@selector(checkPopoverKeyWindowStatus) withObject:nil afterDelay:0];
 }
@@ -313,6 +347,10 @@
 	_popoverWindow.frameView.arrowDirection = direction;
 }
 
+- (void)_setArrowOffset:(CGFloat)offset{
+	_popoverWindow.frameView.arrowOffset = offset;
+}
+
 #pragma mark -
 #pragma mark Private
 
@@ -370,6 +408,7 @@
 	if (NSContainsRect(screenFrame, windowFrame)) {
 		return newDirection;
 	}
+
 	// Calculate the remaining space on each side and figure out which would be the best to try next
 	CGFloat left = NSMinX(_screenRect);
 	CGFloat right = screenFrame.size.width - NSMaxX(_screenRect);
@@ -382,6 +421,7 @@
 		case INPopoverArrowDirectionUp:
 		case INPopoverArrowDirectionDown:
 			newDirection = arrowLeft ? INPopoverArrowDirectionLeft : INPopoverArrowDirectionRight;
+			break;
 		case INPopoverArrowDirectionLeft:
 		case INPopoverArrowDirectionRight:
 			newDirection = arrowUp ? INPopoverArrowDirectionUp : INPopoverArrowDirectionDown;
@@ -416,7 +456,7 @@
 - (void)_closePopoverAndResetVariables
 {
 	NSWindow *positionWindow = [self.positionView window];
-	[_popoverWindow orderOut:nil]; // Close the window 
+	[_popoverWindow orderOut:nil]; // Close the window
 	[self _callDelegateMethod:@selector(popoverDidClose:)]; // Call the delegate to inform that the popover has closed
 	[positionWindow removeChildWindow:_popoverWindow]; // Remove it as a child window
 	[positionWindow makeKeyAndOrderFront:nil];
