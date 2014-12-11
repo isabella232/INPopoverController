@@ -128,24 +128,50 @@
 }
 
 // Calculate the frame of the window depending on the arrow direction
+// Calculate the frame of the window depending on the arrow direction
 - (NSRect)popoverFrameWithSize:(NSSize)contentSize andArrowDirection:(INPopoverArrowDirection)direction
 {
+	NSRect screenFrame = [[[_positionView window] screen] frame];
 	NSRect contentRect = NSZeroRect;
 	contentRect.size = contentSize;
 	NSRect windowFrame = [_popoverWindow frameRectForContentRect:contentRect];
 	if (direction == INPopoverArrowDirectionUp) {
 		CGFloat xOrigin = NSMidX(_screenRect) - floor(windowFrame.size.width / 2.0);
 		CGFloat yOrigin = NSMinY(_screenRect) - windowFrame.size.height;
+		if (xOrigin < 0) {
+			xOrigin = 0;
+		}
+		else if (xOrigin + windowFrame.size.width > screenFrame.size.width) {
+			xOrigin -= (xOrigin + windowFrame.size.width) - screenFrame.size.width;
+		}
 		windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
 	} else if (direction == INPopoverArrowDirectionDown) {
 		CGFloat xOrigin = NSMidX(_screenRect) - floor(windowFrame.size.width / 2.0);
+		if (xOrigin < 0) {
+			xOrigin = 0;
+		}
+		else if (xOrigin + windowFrame.size.width > screenFrame.size.width) {
+			xOrigin -= (xOrigin + windowFrame.size.width) - screenFrame.size.width;
+		}
 		windowFrame.origin = NSMakePoint(xOrigin, NSMaxY(_screenRect));
 	} else if (direction == INPopoverArrowDirectionLeft) {
 		CGFloat yOrigin = NSMidY(_screenRect) - floor(windowFrame.size.height / 2.0);
+		if (yOrigin < 0) {
+			yOrigin = 0;
+		}
+		else if (yOrigin + windowFrame.size.height > screenFrame.size.height) {
+			yOrigin -= (yOrigin + windowFrame.size.height) - screenFrame.size.height;
+		}
 		windowFrame.origin = NSMakePoint(NSMaxX(_screenRect), yOrigin);
 	} else if (direction == INPopoverArrowDirectionRight) {
 		CGFloat xOrigin = NSMinX(_screenRect) - windowFrame.size.width;
 		CGFloat yOrigin = NSMidY(_screenRect) - floor(windowFrame.size.height / 2.0);
+		if (yOrigin < 0) {
+			yOrigin = 0;
+		}
+		else if (yOrigin + windowFrame.size.height > screenFrame.size.height) {
+			yOrigin -= (yOrigin + windowFrame.size.height) - screenFrame.size.height;
+		}
 		windowFrame.origin = NSMakePoint(xOrigin, yOrigin);
 	} else {
 		// If no arrow direction is specified, just return an empty rect
